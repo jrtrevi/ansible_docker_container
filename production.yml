@@ -1,0 +1,21 @@
+---
+ - name: mycool app
+   hosts: production
+   become: True
+   roles: 
+     - { role: api-pull }  ## this is not necessarry but just pulls the image from docker repo ## 
+     - { role: api-prod } ## this will pull an image and run it ##
+     - { role: ui-pull } ## this is the same as api-pull, just pulls the image ##
+     - { role: ui-prod } 
+     
+   ## BONUS, if you want to add an email that tells you when the play is done ##
+   tasks: 
+   - mail:
+       host: 127.0.0.1 
+       port: 25
+       to: <your-email@some-email.com>
+       from: any-user-on-the-host
+       subject: Ansible-report
+       subtype: html
+       body: "your custom app has deployed, please make sure it has the correct changes"
+       
