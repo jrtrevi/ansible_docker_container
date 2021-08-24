@@ -1,1 +1,66 @@
-
+- name:
+  docker_container:
+    name: postgres
+    image: postgres:latest
+    restart_policy: alwyas
+    env:
+      POSTGRES_USER: 'random user'
+      POSTGRES_PASSWORD: '{{ password_in_var }}'
+      POSTGRES_DB: 'name of db'
+    volume:
+      - /where/your/data/is/located:/where/you/want/your/data
+    ports: 5432:5432
+    
+ - name: 
+   docker_container:
+     name: "api_my-app_api{{ item }}"   ## i use this to do load balancing ##
+     pull: yes
+     recreate: yes
+     restart_policy: alwyas
+     image: where-your-image-repo-is.com/path/to/repo
+     env:
+       FLASK_ENV: 'docker'
+       POSTGRES_USER: 'random user'
+       POSTGRES_PASSWORD: '{{ password_in_var }}'
+       POSTGRES_DB: 'name of db'
+       POSTGRES_URL: 'postgresql://user:{{ password_in_var }}@postgres:5432/name-of-db'
+       SQLALCHEMY_POOL_SIZE: '10'
+       SQLALCHEMY_MAX_OVERFLOW: '20'
+       SERVER_CERT: 'PATH/TO/YOUR/CERT'
+       SERVER_KEY: 'PATH/TO/YOUR/KEY'
+       CA_CERT: 'PATH/TO/CA_BUNDLE'
+     ports: 8000
+     volumes:
+       - /path/to/app/data:/where/you/want/your/data
+       - /path/to/certs/on/box:/path/where/cert/goes:z    ##most likely in /etc/pki/tls
+       - /path/to/key/on/box:/path/where/key/goes:z
+       - /path/to/ca_bundle/on/box:/path/where/bundle/goes:z
+     links:
+       - postgres ### linking these containers to postgres container
+     with_sequence: count=4  ####this loops the api containers and counts to how ever many you want for load balancing
+     
+- name: 
+  docker_container: 
+    name: nginx_for_app
+    image: where-your-image-repo-is.com/path/to/repo/nginx:latest
+    restart_policy: always
+    links:
+      - api_my-app_api_1
+      - api_my-app_api_2
+      - api_my-app_api_3
+      - api_my-app_api_4
+    ports:
+      - 8080:80
+      - 8443:443
+    volumes:
+       - /path/to/certs/on/box:/path/where/cert/goes:z    ##most likely in /etc/pki/tls
+       - /path/to/key/on/box:/path/where/key/goes:z
+       - /path/to/ca_bundle/on/box:/path/where/bundle/goes:z
+       - /path/to/nginx.conf:/where/you/want/nginx.conf
+### BONUS ####
+- name: update db
+  become: true
+  shell: |
+    docker exec -it api_my-app_1 python manage.py db init ## initializes DB: you shouldnt use this every time. 
+    docker exec -it api_my-app_1 python manage.py db migrate ### migrates local db into container db use this when youve made changes to database i.e. new entries##
+    docker exec -it api_my-app_1 python manage.py db upgrade ## upgrades db to update to current info 
