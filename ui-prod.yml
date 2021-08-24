@@ -1,0 +1,64 @@
+---
+
+### the first blocks are to check the system to verify there are files needed to start your app i.e. environment.ts
+- name: check to see if environment files exists
+  stat: 
+    path: /path/to/environment-file
+  register: env_stat
+  
+- name: copy file over if file doesnt exist
+  get_url:
+    client_cert: /etc/pki/tls/server.crt
+    client_key: /etc/pki/tls/server.key
+    validate_certs: no
+    url: mycoolrepo.com/where/the/file/lives
+    dest: /where/the/file/should/be
+    mode: 0770
+  when: env_stat.stat.exists == False
+  
+- name: 
+  stat:
+    path: /path/to/nginx.conf
+  register: nginx
+  
+- name: 
+  get_url:
+    client_cert: /etc/pki/tls/server.crt
+    client_key: /etc/pki/tls/server.key
+    validate_certs: no
+    url: mycoolrepo.com/where/the/file/lives
+    dest: /where/the/file/should/be/nginx.con
+    mode: 0770
+  when: nginx.stat.exists == False  
+  
+  
+  ### now we build the containers
+- name: 
+  docker_container:
+    name: mycoolapp_ui
+    pull: yes
+    image: mycontainerrepo.com/path/to/repo:latest
+    restart_policy: always
+    volumes:
+      - /path/to/ui/environment.ts:/where/your/app/on/the/container/is/environment.ts:z
+    working_dir: /path/on/container/app
+    ports: 4200:4200
+    
+ ### Proxy container to view on your browser via http###
+ - name:
+   docker_container:
+     name: nginx_proxy
+     image: nginx:alpine ##what ever container you want##
+     restart_policy: alwyas
+     volumes: 
+       - /etc/pki/tls/server.cert:etc/pki/tls/server.cert:ro
+       - /etc/pki/tls/server.cert:etc/pki/tls/server.cert:ro
+       - /etc/pki/tls/ca.cert:etc/pki/tls/ca.cert:ro
+       - /path/to/nginx.conf:/etc/nginx/nginx.conf
+     links:
+       - mycoolapp_ui
+     ports:
+       - 80:80
+       - 443:443
+  
+  ...
